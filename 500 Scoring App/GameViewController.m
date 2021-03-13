@@ -1,39 +1,54 @@
 //
 //  GameViewController.m
-//  500 Scoring App
+//  AvoidTheSquares - iOS
 //
-//  Created by Lee Warren on 24/01/2015.
-//  Copyright (c) 2015 Lee Warren. All rights reserved.
+//  Created by Lee Warren on 3/12/2014.
+//  Copyright (c) 2014 Lee Warren. All rights reserved.
 //
 
 #import "GameViewController.h"
 #import "GameScene.h"
+#import <iAd/iAd.h>
 
-@implementation SKScene (Unarchive)
 
-+ (instancetype)unarchiveFromFile:(NSString *)file {
-    /* Retrieve scene file path from the application bundle */
-    NSString *nodePath = [[NSBundle mainBundle] pathForResource:file ofType:@"sks"];
-    /* Unarchive the file to an SKScene object */
-    NSData *data = [NSData dataWithContentsOfFile:nodePath
-                                          options:NSDataReadingMappedIfSafe
-                                            error:nil];
-    NSKeyedUnarchiver *arch = [[NSKeyedUnarchiver alloc] initForReadingWithData:data];
-    [arch setClass:self forClassName:@"SKScene"];
-    SKScene *scene = [arch decodeObjectForKey:NSKeyedArchiveRootObjectKey];
-    [arch finishDecoding];
-    
-    return scene;
-}
+@interface GameViewController () <ADBannerViewDelegate>
+
+
 
 @end
 
 @implementation GameViewController
 
+// iad stuff
+- (void)bannerView:(ADBannerView *)banner didFailToReceiveAdWithError:(NSError *)error
+{
+    if (banner.isBannerLoaded) {
+        [UIView beginAnimations:@"animateAdBannerOff" context:NULL];
+        // Assumes the banner view is placed at the bottom of the screen.
+        banner.frame = CGRectOffset(banner.frame, 0, banner.frame.size.height);
+        [UIView commitAnimations];
+    }
+}
+
+- (void)bannerViewDidLoadAd:(ADBannerView *)banner
+{
+    if (!banner.isBannerLoaded) {
+        [UIView beginAnimations:@"animateAdBannerOn" context:NULL];
+        // Assumes the banner view is just off the bottom of the screen.
+        banner.frame = CGRectOffset(banner.frame, 0, -banner.frame.size.height);
+        [UIView commitAnimations];
+    }
+}
+
+
 - (void)viewDidLoad
 {
     [super viewDidLoad];
 
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNotification:) name:@"hideAd" object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNotification:) name:@"showAd" object:nil];
+
+    
     // Configure the view.
     SKView * skView = (SKView *)self.view;
     skView.showsFPS = YES;
@@ -41,12 +56,30 @@
     /* Sprite Kit applies additional optimizations to improve rendering performance */
     skView.ignoresSiblingOrder = YES;
     
+
     // Create and configure the scene.
-    GameScene *scene = [GameScene unarchiveFromFile:@"GameScene"];
+    //GameScene *scene = [GameScene unarchiveFromFile:@"GameScene"];
+    GameScene *scene = [GameScene sceneWithSize:[skView bounds].size];
     scene.scaleMode = SKSceneScaleModeAspectFill;
-    
     // Present the scene.
     [skView presentScene:scene];
+        
+}
+
+// iad stuff
+ - (void)handleNotification:(NSNotification *)notification
+{
+    if ([notification.name isEqualToString:@"hideAd"]) {
+        self.canDisplayBannerAds = NO;
+
+    } else if ([notification.name isEqualToString:@"showAd"]) {
+        //if ( [[InAppManager sharedManager]isFeature1PurchasedAlready] == YES) {
+         //self.canDisplayBannerAds = NO;
+         //} else {
+         
+        self.canDisplayBannerAds = YES;
+
+    }
 }
 
 - (BOOL)shouldAutorotate
@@ -69,8 +102,33 @@
     // Release any cached data, images, etc that aren't in use.
 }
 
+- (void)viewWillLayoutSubviews
+{
+    // iad stuff
+     self.banner = [[ADBannerView alloc] initWithFrame:CGRectZero];
+    self.banner.delegate = self;
+    [self.banner sizeToFit];
+    
+   /* if ( [[InAppManager sharedManager]isFeature1PurchasedAlready] == YES) {
+        self.canDisplayBannerAds = NO;
+    } else {
+        self.canDisplayBannerAds = YES;
+    }
+    */
+    
+    [super viewWillLayoutSubviews];
+    
+}
+
+
 - (BOOL)prefersStatusBarHidden {
     return YES;
 }
 
+
+
 @end
+
+
+
+
